@@ -424,8 +424,24 @@ function updatePlayerMovement(state: GameState, canvas: HTMLCanvasElement, dt: n
 function fireProjectiles(state: GameState): void {
   const unitPositions = getUnitWorldPositions(state.player);
   const isExplosive = state.player.specialWeapon === "explosive";
+  const isMachineGun = state.player.specialWeapon === "machine-gun";
 
   for (const unit of unitPositions) {
+    if (isMachineGun) {
+      const spread = 6;
+
+      // pull all shots to same vertical origin
+      state.projectiles.push({
+        x: state.player.x + (Math.random() - 0.5) * spread,
+        y: state.player.y - 18,
+        radius: 3,
+        speed: 520,
+        damage: state.player.damage,
+      });
+
+      continue;
+    }
+    
     state.projectiles.push({
       x: unit.x,
       y: unit.y - 14,

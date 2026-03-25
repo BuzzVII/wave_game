@@ -108,7 +108,11 @@ function drawPlayer(ctx: CanvasRenderingContext2D, player: Player): void {
 
 function drawProjectiles(ctx: CanvasRenderingContext2D, projectiles: Projectile[]): void {
   for (const projectile of projectiles) {
-    ctx.fillStyle = projectile.radius >= 5 ? "#ff9f43" : "#ffe082";
+    if (projectile.radius <= 3) {
+        ctx.fillStyle = "#d0f0ff";
+    } else {
+        ctx.fillStyle = projectile.radius >= 5 ? "#ff9f43" : "#ffe082";
+    }
     ctx.beginPath();
     ctx.arc(projectile.x, projectile.y, projectile.radius, 0, Math.PI * 2);
     ctx.fill();
