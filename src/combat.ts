@@ -36,11 +36,7 @@ function getSpecialDuration(kind: SpecialWeaponKind): number {
     return 10;
   }
 
-  if (kind === "mines") {
-    return 12;
-  }
-
-  return 6;
+  return 0;
 }
 
 function getEffectiveAttackSpeed(state: GameState): number {
@@ -52,21 +48,23 @@ function getEffectiveAttackSpeed(state: GameState): number {
 }
 
 function updateSpecialWeapon(state: GameState, dt: number): void {
+  if (state.roller.active) {
+    state.roller.y -= state.roller.speed * dt;
+
+    if (state.roller.y < -80) {
+      state.roller.active = false;
+    }
+  }
+
   if (state.player.specialWeapon === null) {
     return;
   }
 
   state.player.specialTimer -= dt;
 
-  if (state.player.specialWeapon === "roller" && state.roller.active) {
-    state.roller.y += state.roller.speed * dt;
-  }
-
   if (state.player.specialTimer <= 0) {
     state.player.specialWeapon = null;
     state.player.specialTimer = 0;
-    state.player.supportUnits = 0;
-    state.roller.active = false;
   }
 }
 
@@ -101,7 +99,7 @@ function handleRollerHits(state: GameState, canvas: HTMLCanvasElement): void {
 
   state.enemies = survivingEnemies;
 
-  if (state.roller.y > canvas.height + 80) {
+  if (state.roller.y < -80) {
     state.roller.active = false;
   }
 }
@@ -144,18 +142,19 @@ function applyExplosionDamage(state: GameState, hitX: number, hitY: number, dama
 }
 
 function activateSpecialWeapon(state: GameState, kind: SpecialWeaponKind): void {
-  state.player.specialWeapon = kind;
-  state.player.specialTimer = getSpecialDuration(kind);
-
   if (kind === "roller") {
     state.roller.active = true;
-    state.roller.y = -60;
+    state.roller.y = state.player.y - 20;
+    return;
   }
 
   if (kind === "mines") {
-    state.player.supportUnits += 10;
-    state.player.supportUnits = Math.min(state.player.supportUnits, getMaxSupportUnits());
+    state.player.supportUnits = Math.min(state.player.supportUnits + 10, getMaxSupportUnits());
+    return;
   }
+
+  state.player.specialWeapon = kind;
+  state.player.specialTimer = getSpecialDuration(kind);
 }
 
 function resetSpecialBox(state: GameState): void {
@@ -638,34 +637,56 @@ function handleProjectileUpgradeHits(state: GameState): void {
   state.projectiles = survivingProjectiles;
 }
 
-function getAllUnitPositions(state: GameState): Array<{ x: number; y: number; isSupport: boolean }> {
+function getMinePositions(state: GameState, canvas: HTMLCanvasElement): Array<{ x: number; y: number }> {
+  const positions: Array<{ x: number; y: number }> = [];
+
+  if (state.player.supportUnits <= 0) {
+    return positions;
+  }
+
+  const minesPerRow = 5;
+  const mineRadius = 8;
+  const spacingX = mineRadius * 2 + 2;
+  const spacingY = mineRadius * 2 + 2;
+
+  const centerX = getEnemyColumnCenterX(canvas);
+  const baseY = state.player.y - 140;
+
+  for (let i = 0; i < state.player.supportUnits; i++) {
+    const row = Math.floor(i / minesPerRow);
+    const col = i % minesPerRow;
+
+    const x = centerX + (col - (minesPerRow - 1) / 2) * spacingX;
+    const y = baseY - row * spacingY;
+
+    positions.push({ x, y });
+  }
+
+  return positions;
+}
+
+function getAllUnitPositions(state: GameState, canvas: HTMLCanvasElement): Array<{ x: number; y: number; isSupport: boolean }> {
   const mainUnits = getUnitWorldPositions(state.player).map((p) => ({
     x: p.x,
     y: p.y,
     isSupport: false,
   }));
 
-  const support: Array<{ x: number; y: number; isSupport: boolean }> = [];
-  const spacing = 18;
-
-  for (let i = 0; i < state.player.supportUnits; i++) {
-    const angle = (i / Math.max(1, state.player.supportUnits)) * Math.PI * 2;
-    support.push({
-      x: state.player.x + Math.cos(angle) * 34,
-      y: state.player.y + Math.sin(angle) * 34,
-      isSupport: true,
-    });
-  }
+  const support = getMinePositions(state, canvas).map((p) => ({
+    x: p.x,
+    y: p.y,
+    isSupport: true,
+  }));
 
   return [...mainUnits, ...support];
 }
 
-function handleEnemyUnitCollisions(state: GameState): void {
+function handleEnemyUnitCollisions(state: GameState, canvas: HTMLCanvasElement): void {
   if (state.player.units <= 0 && state.player.supportUnits <= 0) {
     return;
   }
 
-  const unitPositions = getAllUnitPositions(state);
+  const unitPositions = getAllUnitPositions(state, canvas);
   const aliveFlags = unitPositions.map(() => true);
   const survivingEnemies: Enemy[] = [];
 
@@ -689,6 +710,11 @@ function handleEnemyUnitCollisions(state: GameState): void {
       if (distance < enemy.radius + 12) {
         aliveFlags[i] = false;
         consumedUnit = true;
+
+        if (unit.isSupport) {
+          spawnExplosion(state, unit.x, unit.y, 28);
+        }
+
         break;
       }
     }
@@ -804,7 +830,7 @@ export function updateCombat(state: GameState, canvas: HTMLCanvasElement, dt: nu
   handleProjectileUpgradeHits(state);
   handleProjectileSpecialBoxHits(state);
   handleRollerHits(state, canvas);
-  handleEnemyUnitCollisions(state);
+  handleEnemyUnitCollisions(state, canvas);
   handleUpgradeCollisions(state);
   checkBaseReached(state);
   cullOffscreen(state, canvas);

@@ -55,7 +55,7 @@ function drawBase(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, stat
   ctx.fillText("BASE", getEnemyColumnCenterX(canvas), state.baseY - 10);
 }
 
-function drawPlayer(ctx: CanvasRenderingContext2D, player: Player): void {
+function drawPlayer(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, player: Player): void {
   const positions = getUnitWorldPositions(player);
 
   for (const unit of positions) {
@@ -71,13 +71,19 @@ function drawPlayer(ctx: CanvasRenderingContext2D, player: Player): void {
   }
 
   if (player.supportUnits > 0) {
-    const radius = 34;
+    const minesPerRow = 5;
+    const mineRadius = 8;
+    const spacingX = mineRadius * 2 + 2;
+    const spacingY = mineRadius * 2 + 2;
+    const centerX = getEnemyColumnCenterX(canvas);
+    const baseY = player.y - 140;
 
     for (let i = 0; i < player.supportUnits; i++) {
-      const angle = (i / Math.max(1, player.supportUnits)) * Math.PI * 2;
-      const x = player.x + Math.cos(angle) * radius;
-      const y = player.y + Math.sin(angle) * radius;
+      const row = Math.floor(i / minesPerRow);
+      const col = i % minesPerRow;
 
+      const x = centerX + (col - (minesPerRow - 1) / 2) * spacingX;
+      const y = baseY - row * spacingY;
       ctx.fillStyle = "#444";
       ctx.beginPath();
       ctx.arc(x, y, 8, 0, Math.PI * 2);
@@ -282,6 +288,18 @@ function drawHud(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, state
     ctx.fillText(`Time: ${state.player.specialTimer.toFixed(1)}`, 20, 198);
   }
 
+  if (state.roller.active) {
+    ctx.fillText("Roller: active", 20, state.player.specialWeapon !== null ? 226 : 170);
+  }
+
+  if (state.player.supportUnits > 0) {
+    const mineLineY = state.player.specialWeapon !== null
+      ? (state.roller.active ? 254 : 226)
+      : (state.roller.active ? 198 : 170);
+
+    ctx.fillText(`Mines: ${state.player.supportUnits}`, 20, mineLineY);
+  }
+
   ctx.textAlign = "right";
   ctx.fillText("Move: A/D or ←/→", canvas.width - 20, 30);
   // ctx.fillText("Shoot upgrades and special box", canvas.width - 20, 58);
@@ -312,7 +330,7 @@ export function draw(
   drawColumns(ctx, canvas);
   drawBase(ctx, canvas, state);
   drawSpecialBox(ctx, state);
-  drawPlayer(ctx, state.player);
+  drawPlayer(ctx, canvas, state.player);
   drawProjectiles(ctx, state.projectiles);
   drawExplosions(ctx, state.explosions);
   drawRoller(ctx, canvas, state);

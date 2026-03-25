@@ -11,8 +11,8 @@ export type InputState = {
 };
 
 export type UpgradeKind = "weapon-speed" | "weapon-damage" | "unit";
-
-export type SpecialWeaponKind = "roller" | "explosive" | "machine-gun" | "mines";
+export type TimedSpecilWeaponKind = "explosive" | "machine-gun";
+export type SpecialWeaponKind = TimedSpecilWeaponKind | "roller" | "mines";
 
 export type Player = {
   x: number;
@@ -25,7 +25,7 @@ export type Player = {
   baseDamage: number;
   baseAttackSpeed: number;
   unitDecayTimer: number;
-  specialWeapon: SpecialWeaponKind | null;
+  specialWeapon: TimedSpecilWeaponKind | null;
   specialTimer: number;
   supportUnits: number;
 };
