@@ -17,31 +17,39 @@ export function getContext2D(canvas: HTMLCanvasElement): CanvasRenderingContext2
 }
 
 export function getColumnWidth(canvas: HTMLCanvasElement): number {
-  return canvas.width / 3;
+  return canvas.width / 4;
 }
 
-export function getLeftColumnWidth(canvas: HTMLCanvasElement): number {
-  return getColumnWidth(canvas);
+export function getColumnCenterX(canvas: HTMLCanvasElement, columnIndex: number): number {
+  return getColumnWidth(canvas) * (columnIndex + 0.5);
 }
 
-export function getMiddleColumnLeft(canvas: HTMLCanvasElement): number {
-  return getColumnWidth(canvas);
+export function getWeaponColumnCenterX(canvas: HTMLCanvasElement): number {
+  return getColumnCenterX(canvas, 0);
 }
 
-export function getMiddleColumnRight(canvas: HTMLCanvasElement): number {
+export function getSpecialColumnCenterX(canvas: HTMLCanvasElement): number {
+  return getColumnCenterX(canvas, 1);
+}
+
+export function getEnemyColumnLeft(canvas: HTMLCanvasElement): number {
   return getColumnWidth(canvas) * 2;
 }
 
-export function getMiddleColumnWidth(canvas: HTMLCanvasElement): number {
+export function getEnemyColumnRight(canvas: HTMLCanvasElement): number {
+  return getColumnWidth(canvas) * 3;
+}
+
+export function getEnemyColumnCenterX(canvas: HTMLCanvasElement): number {
+  return getColumnCenterX(canvas, 2);
+}
+
+export function getEnemyColumnWidth(canvas: HTMLCanvasElement): number {
   return getColumnWidth(canvas);
 }
 
-export function getMiddleColumnCenterX(canvas: HTMLCanvasElement): number {
-  return getColumnWidth(canvas) * 1.5;
-}
-
-export function getRightColumnLeft(canvas: HTMLCanvasElement): number {
-  return getColumnWidth(canvas) * 2;
+export function getUnitColumnCenterX(canvas: HTMLCanvasElement): number {
+  return getColumnCenterX(canvas, 3);
 }
 
 export function createInitialPlayer(canvas: HTMLCanvasElement): Player {
@@ -56,6 +64,9 @@ export function createInitialPlayer(canvas: HTMLCanvasElement): Player {
     baseDamage: 10,
     baseAttackSpeed: 1,
     unitDecayTimer: 0,
+    specialWeapon: null,
+    specialTimer: 0,
+    supportUnits: 0,
   };
 }
 
@@ -76,6 +87,20 @@ export function createInitialState(canvas: HTMLCanvasElement): GameState {
     weaponUpgradeSpawnTimer: 0,
     unitUpgradeSpawnTimer: 0,
     score: 0,
+    specialBox: {
+      x: getSpecialColumnCenterX(canvas),
+      y: canvas.height * 0.5,
+      width: 56,
+      height: 56,
+      hp: 500,
+      maxHp: 500,
+    },
+    roller: {
+      active: false,
+      y: -100,
+      speed: 280,
+      radius: 18,
+    },
   };
 }
 
@@ -89,6 +114,9 @@ export function resizeCanvas(canvas: HTMLCanvasElement, state: GameState): void 
   );
   state.player.y = canvas.height * 0.82;
   state.baseY = canvas.height * 0.92;
+
+  state.specialBox.x = getSpecialColumnCenterX(canvas);
+  state.specialBox.y = canvas.height * 0.5;
 }
 
 export function getUnitOffsets(unitCount: number): Point[] {

@@ -1,6 +1,44 @@
 export type Phase = "combat" | "gameover";
 
+export type Point = {
+  x: number;
+  y: number;
+};
+
+export type InputState = {
+  left: boolean;
+  right: boolean;
+};
+
 export type UpgradeKind = "weapon-speed" | "weapon-damage" | "unit";
+
+export type SpecialWeaponKind = "roller" | "explosive" | "machine-gun" | "mines";
+
+export type Player = {
+  x: number;
+  y: number;
+  units: number;
+  damage: number;
+  attackSpeed: number;
+  fireCooldown: number;
+  moveSpeed: number;
+  baseDamage: number;
+  baseAttackSpeed: number;
+  unitDecayTimer: number;
+  specialWeapon: SpecialWeaponKind | null;
+  specialTimer: number;
+  supportUnits: number;
+};
+
+export type Enemy = {
+  x: number;
+  y: number;
+  hp: number;
+  maxHp: number;
+  speed: number;
+  radius: number;
+  isBoss: boolean;
+};
 
 export type Upgrade = {
   kind: UpgradeKind;
@@ -18,29 +56,6 @@ export type Upgrade = {
   tier: number;
 };
 
-export type Player = {
-  x: number;
-  y: number;
-  units: number;
-  damage: number;
-  attackSpeed: number;
-  fireCooldown: number;
-  moveSpeed: number;
-  baseDamage: number;
-  baseAttackSpeed: number;
-  unitDecayTimer: number;
-};
-
-export type Enemy = {
-  x: number;
-  y: number;
-  hp: number;
-  maxHp: number;
-  speed: number;
-  radius: number;
-  isBoss: boolean;
-};
-
 export type Projectile = {
   x: number;
   y: number;
@@ -49,14 +64,20 @@ export type Projectile = {
   damage: number;
 };
 
-export type Point = {
+export type SpecialBox = {
   x: number;
   y: number;
+  width: number;
+  height: number;
+  hp: number;
+  maxHp: number;
 };
 
-export type InputState = {
-  left: boolean;
-  right: boolean;
+export type ActiveRoller = {
+  active: boolean;
+  y: number;
+  speed: number;
+  radius: number;
 };
 
 export type GameState = {
@@ -72,4 +93,6 @@ export type GameState = {
   weaponUpgradeSpawnTimer: number;
   unitUpgradeSpawnTimer: number;
   score: number;
+  specialBox: SpecialBox;
+  roller: ActiveRoller;
 };

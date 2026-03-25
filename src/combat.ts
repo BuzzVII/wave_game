@@ -1,13 +1,142 @@
-import type { Enemy, GameState, Projectile, Upgrade } from "./types.js";
+import type { Enemy, GameState, Projectile, SpecialWeaponKind, Upgrade } from "./types.js";
 import {
+  getEnemyColumnCenterX,
+  getEnemyColumnLeft,
+  getEnemyColumnWidth,
   getFormationHalfWidth,
-  getLeftColumnWidth,
-  getMiddleColumnLeft,
-  getMiddleColumnWidth,
-  getRightColumnLeft,
+  getUnitColumnCenterX,
   getUnitWorldPositions,
+  getWeaponColumnCenterX,
 } from "./state.js";
 
+function chooseSpecialWeapon(): SpecialWeaponKind {
+  const roll = Math.random();
+
+  if (roll < 0.25) {
+    return "roller";
+  }
+
+  if (roll < 0.5) {
+    return "explosive";
+  }
+
+  if (roll < 0.75) {
+    return "machine-gun";
+  }
+
+  return "mines";
+}
+
+function getSpecialDuration(kind: SpecialWeaponKind): number {
+  if (kind === "machine-gun") {
+    return 8;
+  }
+
+  if (kind === "explosive") {
+    return 10;
+  }
+
+  if (kind === "mines") {
+    return 12;
+  }
+
+  return 6;
+}
+
+function getEffectiveAttackSpeed(state: GameState): number {
+  if (state.player.specialWeapon === "machine-gun") {
+    return state.player.attackSpeed * 10;
+  }
+
+  return state.player.attackSpeed;
+}
+
+function updateSpecialWeapon(state: GameState, dt: number): void {
+  if (state.player.specialWeapon === null) {
+    return;
+  }
+
+  state.player.specialTimer -= dt;
+
+  if (state.player.specialWeapon === "roller" && state.roller.active) {
+    state.roller.y += state.roller.speed * dt;
+  }
+
+  if (state.player.specialTimer <= 0) {
+    state.player.specialWeapon = null;
+    state.player.specialTimer = 0;
+    state.player.supportUnits = 0;
+    state.roller.active = false;
+  }
+}
+
+function handleRollerHits(state: GameState, canvas: HTMLCanvasElement): void {
+  if (!state.roller.active) {
+    return;
+  }
+
+  const rollerX = getEnemyColumnCenterX(canvas);
+  const survivingEnemies: Enemy[] = [];
+
+  for (const enemy of state.enemies) {
+    const dx = enemy.x - rollerX;
+    const dy = enemy.y - state.roller.y;
+    const distance = Math.hypot(dx, dy);
+
+    if (distance < enemy.radius + state.roller.radius) {
+      if (enemy.isBoss) {
+        enemy.hp -= 40;
+        if (enemy.hp > 0) {
+          survivingEnemies.push(enemy);
+        } else {
+          state.score += 10;
+        }
+      } else {
+        state.score += 1;
+      }
+    } else {
+      survivingEnemies.push(enemy);
+    }
+  }
+
+  state.enemies = survivingEnemies;
+
+  if (state.roller.y > canvas.height + 80) {
+    state.roller.active = false;
+  }
+}
+
+function applyExplosionDamage(state: GameState, hitX: number, hitY: number, damage: number): void {
+  const radius = 42;
+
+  for (const enemy of state.enemies) {
+    const dx = enemy.x - hitX;
+    const dy = enemy.y - hitY;
+    const distance = Math.hypot(dx, dy);
+
+    if (distance <= radius) {
+      enemy.hp -= damage;
+    }
+  }
+}
+
+function activateSpecialWeapon(state: GameState, kind: SpecialWeaponKind): void {
+  state.player.specialWeapon = kind;
+  state.player.specialTimer = getSpecialDuration(kind);
+
+  if (kind === "roller") {
+    state.roller.active = true;
+    state.roller.y = -60;
+  }
+
+  if (kind === "mines") {
+    state.player.supportUnits = 10;
+  }
+}
+
+function resetSpecialBox(state: GameState): void {
+  state.specialBox.hp = state.specialBox.maxHp;
+}
 function getColumnCenterX(canvas: HTMLCanvasElement, columnIndex: number): number {
   return (canvas.width / 3) * (columnIndex + 0.5);
 }
@@ -132,14 +261,14 @@ function addUnitUpgrade(state: GameState, upgrade: Upgrade): void {
 }
 
 function spawnEnemy(state: GameState, canvas: HTMLCanvasElement, isBoss: boolean): void {
-  const middleLeft = getMiddleColumnLeft(canvas);
-  const middleWidth = getMiddleColumnWidth(canvas);
+  const enemyLeft = getEnemyColumnLeft(canvas);
+  const enemyWidth = getEnemyColumnWidth(canvas);
   const speed = getEnemySpeed();
 
   if (isBoss) {
     const bossHp = getBossHp(state.score);
     state.enemies.push({
-      x: getColumnCenterX(canvas, 1),
+      x: getEnemyColumnCenterX(canvas),
       y: -40,
       hp: bossHp,
       maxHp: bossHp,
@@ -150,7 +279,7 @@ function spawnEnemy(state: GameState, canvas: HTMLCanvasElement, isBoss: boolean
   } else {
     const hp = getNormalEnemyHp(state.score);
     state.enemies.push({
-      x: middleLeft + middleWidth * (0.06 + Math.random() * 0.88),
+      x: enemyLeft + enemyWidth * (0.06 + Math.random() * 0.88),
       y: -20,
       hp,
       maxHp: hp,
@@ -178,7 +307,7 @@ function spawnWeaponUpgrade(state: GameState, canvas: HTMLCanvasElement): void {
 
   state.upgrades.push({
     kind: isSpeedUpgrade ? "weapon-speed" : "weapon-damage",
-    x: getColumnCenterX(canvas, 0),
+    x: getWeaponColumnCenterX(canvas),
     y: -24,
     width: 40,
     height: 40,
@@ -199,7 +328,7 @@ function spawnUnitUpgrade(state: GameState, canvas: HTMLCanvasElement): void {
 
   state.upgrades.push({
     kind: "unit",
-    x: getColumnCenterX(canvas, 2),
+    x: getUnitColumnCenterX(canvas),
     y: -24,
     width: 40,
     height: 40,
@@ -360,6 +489,10 @@ function handleProjectileHits(state: GameState): void {
           state.score += enemy.isBoss ? 10 : 1;
         }
 
+        if (state.player.specialWeapon === "explosive") {
+          applyExplosionDamage(state, enemy.x, enemy.y, projectile.damage * 0.6);
+        }
+
         break;
       }
     }
@@ -371,6 +504,35 @@ function handleProjectileHits(state: GameState): void {
 
   state.projectiles = survivingProjectiles;
   state.enemies = state.enemies.filter((enemy) => enemy.hp > 0);
+}
+
+function handleProjectileSpecialBoxHits(state: GameState): void {
+  const survivingProjectiles: Projectile[] = [];
+
+  for (const projectile of state.projectiles) {
+    const hit = circleIntersectsRect(
+      projectile.x,
+      projectile.y,
+      projectile.radius,
+      state.specialBox.x - state.specialBox.width / 2,
+      state.specialBox.y - state.specialBox.height / 2,
+      state.specialBox.width,
+      state.specialBox.height,
+    );
+
+    if (hit) {
+      state.specialBox.hp -= projectile.damage;
+
+      if (state.specialBox.hp <= 0) {
+        activateSpecialWeapon(state, chooseSpecialWeapon());
+        resetSpecialBox(state);
+      }
+    } else {
+      survivingProjectiles.push(projectile);
+    }
+  }
+
+  state.projectiles = survivingProjectiles;
 }
 
 function handleProjectileUpgradeHits(state: GameState): void {
@@ -425,20 +587,42 @@ function handleProjectileUpgradeHits(state: GameState): void {
   state.projectiles = survivingProjectiles;
 }
 
+function getAllUnitPositions(state: GameState): Array<{ x: number; y: number; isSupport: boolean }> {
+  const mainUnits = getUnitWorldPositions(state.player).map((p) => ({
+    x: p.x,
+    y: p.y,
+    isSupport: false,
+  }));
+
+  const support: Array<{ x: number; y: number; isSupport: boolean }> = [];
+  const spacing = 18;
+
+  for (let i = 0; i < state.player.supportUnits; i++) {
+    const angle = (i / Math.max(1, state.player.supportUnits)) * Math.PI * 2;
+    support.push({
+      x: state.player.x + Math.cos(angle) * 34,
+      y: state.player.y + Math.sin(angle) * 34,
+      isSupport: true,
+    });
+  }
+
+  return [...mainUnits, ...support];
+}
+
 function handleEnemyUnitCollisions(state: GameState): void {
-  if (state.player.units <= 0) {
+  if (state.player.units <= 0 && state.player.supportUnits <= 0) {
     return;
   }
 
-  const unitPositions = getUnitWorldPositions(state.player);
-  const aliveUnitFlags = unitPositions.map(() => true);
+  const unitPositions = getAllUnitPositions(state);
+  const aliveFlags = unitPositions.map(() => true);
   const survivingEnemies: Enemy[] = [];
 
   for (const enemy of state.enemies) {
     let consumedUnit = false;
 
     for (let i = 0; i < unitPositions.length; i++) {
-      if (!aliveUnitFlags[i]) {
+      if (!aliveFlags[i]) {
         continue;
       }
 
@@ -452,7 +636,7 @@ function handleEnemyUnitCollisions(state: GameState): void {
       const distance = Math.hypot(dx, dy);
 
       if (distance < enemy.radius + 12) {
-        aliveUnitFlags[i] = false;
+        aliveFlags[i] = false;
         consumedUnit = true;
         break;
       }
@@ -463,8 +647,25 @@ function handleEnemyUnitCollisions(state: GameState): void {
     }
   }
 
+  let normalAlive = 0;
+  let supportAlive = 0;
+
+  for (let i = 0; i < unitPositions.length; i++) {
+    if (!aliveFlags[i]) {
+      continue;
+    }
+
+    const unit = unitPositions[i];
+    if (unit?.isSupport) {
+      supportAlive += 1;
+    } else {
+      normalAlive += 1;
+    }
+  }
+
   state.enemies = survivingEnemies;
-  state.player.units = aliveUnitFlags.filter(Boolean).length;
+  state.player.units = normalAlive;
+  state.player.supportUnits = supportAlive;
 
   if (state.player.units <= 0) {
     state.phase = "gameover";
@@ -533,9 +734,10 @@ export function updateCombat(state: GameState, canvas: HTMLCanvasElement, dt: nu
   updateUpgradeSpawns(state, canvas, dt);
   updatePlayerMovement(state, canvas, dt);
   updatePlayerDecay(state, dt);
+  updateSpecialWeapon(state, dt);
 
   state.player.fireCooldown -= dt;
-  const fireInterval = 1 / state.player.attackSpeed;
+  const fireInterval = 1 / getEffectiveAttackSpeed(state);
 
   while (state.player.fireCooldown <= 0 && state.player.units > 0) {
     fireProjectiles(state);
@@ -548,6 +750,8 @@ export function updateCombat(state: GameState, canvas: HTMLCanvasElement, dt: nu
 
   handleProjectileHits(state);
   handleProjectileUpgradeHits(state);
+  handleProjectileSpecialBoxHits(state);
+  handleRollerHits(state, canvas);
   handleEnemyUnitCollisions(state);
   handleUpgradeCollisions(state);
   checkBaseReached(state);

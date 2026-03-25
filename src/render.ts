@@ -1,52 +1,58 @@
 import type { Enemy, GameState, Player, Projectile, Upgrade } from "./types.js";
 import {
-  getMiddleColumnCenterX,
-  getMiddleColumnLeft,
-  getMiddleColumnRight,
+  getEnemyColumnCenterX,
+  getEnemyColumnLeft,
+  getEnemyColumnRight,
   getUnitWorldPositions,
 } from "./state.js";
 
 function drawColumns(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement): void {
-  const third = canvas.width / 3;
+  const fourth = canvas.width / 4;
 
   ctx.fillStyle = "#1f3a1f";
-  ctx.fillRect(0, 0, third, canvas.height);
+  ctx.fillRect(0, 0, fourth, canvas.height);
+
+  ctx.fillStyle = "#3a2f1f";
+  ctx.fillRect(fourth, 0, fourth, canvas.height);
 
   ctx.fillStyle = "#2d2d2d";
-  ctx.fillRect(third, 0, third, canvas.height);
+  ctx.fillRect(fourth * 2, 0, fourth, canvas.height);
 
   ctx.fillStyle = "#1f2f4a";
-  ctx.fillRect(third * 2, 0, third, canvas.height);
+  ctx.fillRect(fourth * 3, 0, fourth, canvas.height);
 
   ctx.strokeStyle = "#666";
   ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(third, 0);
-  ctx.lineTo(third, canvas.height);
-  ctx.moveTo(third * 2, 0);
-  ctx.lineTo(third * 2, canvas.height);
+  ctx.moveTo(fourth, 0);
+  ctx.lineTo(fourth, canvas.height);
+  ctx.moveTo(fourth * 2, 0);
+  ctx.lineTo(fourth * 2, canvas.height);
+  ctx.moveTo(fourth * 3, 0);
+  ctx.lineTo(fourth * 3, canvas.height);
   ctx.stroke();
 
   ctx.fillStyle = "#ffffff";
-  ctx.font = "22px sans-serif";
+  ctx.font = "18px sans-serif";
   ctx.textAlign = "center";
-  ctx.fillText("WEAPON", third * 0.5, 36);
-  ctx.fillText("ENEMIES", third * 1.5, 36);
-  ctx.fillText("UNITS", third * 2.5, 36);
+  ctx.fillText("WEAPON", fourth * 0.5, 36);
+  ctx.fillText("SPECIAL", fourth * 1.5, 36);
+  ctx.fillText("ENEMIES", fourth * 2.5, 36);
+  ctx.fillText("UNITS", fourth * 3.5, 36);
 }
 
 function drawBase(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, state: GameState): void {
   ctx.strokeStyle = "#ffcc66";
   ctx.lineWidth = 4;
   ctx.beginPath();
-  ctx.moveTo(getMiddleColumnLeft(canvas), state.baseY);
-  ctx.lineTo(getMiddleColumnRight(canvas), state.baseY);
+  ctx.moveTo(getEnemyColumnLeft(canvas), state.baseY);
+  ctx.lineTo(getEnemyColumnRight(canvas), state.baseY);
   ctx.stroke();
 
   ctx.fillStyle = "#ffcc66";
   ctx.font = "18px sans-serif";
   ctx.textAlign = "center";
-  ctx.fillText("BASE", getMiddleColumnCenterX(canvas), state.baseY - 10);
+  ctx.fillText("BASE", getEnemyColumnCenterX(canvas), state.baseY - 10);
 }
 
 function drawPlayer(ctx: CanvasRenderingContext2D, player: Player): void {
@@ -157,6 +163,47 @@ function drawUpgrades(ctx: CanvasRenderingContext2D, upgrades: Upgrade[]): void 
   ctx.textBaseline = "alphabetic";
 }
 
+function drawSpecialBox(ctx: CanvasRenderingContext2D, state: GameState): void {
+  const box = state.specialBox;
+
+  ctx.fillStyle = "#a84cff";
+  ctx.fillRect(box.x - box.width / 2, box.y - box.height / 2, box.width, box.height);
+
+  ctx.fillStyle = "#e4c9ff";
+  ctx.fillRect(box.x - box.width / 2 + 5, box.y - box.height / 2 + 5, box.width - 10, box.height - 10);
+
+  ctx.fillStyle = "#111";
+  ctx.font = "bold 11px sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("SP", box.x, box.y);
+
+  const hpRatio = Math.max(0, box.hp / box.maxHp);
+  const hpWidth = 46;
+  const hpHeight = 6;
+
+  ctx.fillStyle = "#111";
+  ctx.fillRect(box.x - hpWidth / 2, box.y - box.height / 2 - 12, hpWidth, hpHeight);
+
+  ctx.fillStyle = "#ff77ff";
+  ctx.fillRect(box.x - hpWidth / 2, box.y - box.height / 2 - 12, hpWidth * hpRatio, hpHeight);
+
+  ctx.textBaseline = "alphabetic";
+}
+
+function drawRoller(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, state: GameState): void {
+  if (!state.roller.active) {
+    return;
+  }
+
+  const x = canvas.width * 0.625;
+
+  ctx.fillStyle = "#ffcc33";
+  ctx.beginPath();
+  ctx.arc(x, state.roller.y, state.roller.radius, 0, Math.PI * 2);
+  ctx.fill();
+}
+
 function drawHud(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, state: GameState): void {
   ctx.fillStyle = "#ffffff";
   ctx.font = "20px sans-serif";
@@ -167,10 +214,15 @@ function drawHud(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, state
   ctx.fillText(`Score: ${state.score}`, 20, 114);
   ctx.fillText(`Enemies: ${state.enemies.length}`, 20, 142);
 
+  if (state.player.specialWeapon !== null) {
+    ctx.fillText(`Special: ${state.player.specialWeapon}`, 20, 170);
+    ctx.fillText(`Time: ${state.player.specialTimer.toFixed(1)}`, 20, 198);
+  }
+
   ctx.textAlign = "right";
   ctx.fillText("Move: A/D or ←/→", canvas.width - 20, 30);
-  ctx.fillText("Collect green for weapon, blue for units", canvas.width - 20, 58);
-  ctx.fillText("R to restart after game over", canvas.width - 20, 86);
+  // ctx.fillText("Shoot upgrades and special box", canvas.width - 20, 58);
+  // ctx.fillText("R to restart after game over", canvas.width - 20, 86);
 }
 
 function drawGameOver(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement): void {
@@ -196,8 +248,10 @@ export function draw(
 
   drawColumns(ctx, canvas);
   drawBase(ctx, canvas, state);
+  drawSpecialBox(ctx, state);
   drawPlayer(ctx, state.player);
   drawProjectiles(ctx, state.projectiles);
+  drawRoller(ctx, canvas, state);
   drawEnemies(ctx, state.enemies);
   drawUpgrades(ctx, state.upgrades);
   drawHud(ctx, canvas, state);
