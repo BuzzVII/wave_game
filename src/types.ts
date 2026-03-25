@@ -80,6 +80,15 @@ export type ActiveRoller = {
   radius: number;
 };
 
+export type Explosion = {
+  x: number;
+  y: number;
+  radius: number;
+  maxRadius: number;
+  life: number;
+  maxLife: number;
+};
+
 export type GameState = {
   phase: Phase;
   player: Player;
@@ -95,4 +104,5 @@ export type GameState = {
   score: number;
   specialBox: SpecialBox;
   roller: ActiveRoller;
+  explosions: Explosion[];
 };

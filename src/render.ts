@@ -1,4 +1,4 @@
-import type { Enemy, GameState, Player, Projectile, Upgrade } from "./types.js";
+import type { Enemy, Explosion, GameState, Player, Projectile, Upgrade } from "./types.js";
 import {
   getEnemyColumnCenterX,
   getEnemyColumnLeft,
@@ -69,14 +69,56 @@ function drawPlayer(ctx: CanvasRenderingContext2D, player: Player): void {
     ctx.arc(unit.x - 4, unit.y - 4, 4, 0, Math.PI * 2);
     ctx.fill();
   }
+
+  if (player.supportUnits > 0) {
+    const radius = 34;
+
+    for (let i = 0; i < player.supportUnits; i++) {
+      const angle = (i / Math.max(1, player.supportUnits)) * Math.PI * 2;
+      const x = player.x + Math.cos(angle) * radius;
+      const y = player.y + Math.sin(angle) * radius;
+
+      ctx.fillStyle = "#444";
+      ctx.beginPath();
+      ctx.arc(x, y, 8, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = "#ffcc33";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(x, y, 8, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.fillStyle = "#ffcc33";
+      ctx.beginPath();
+      ctx.arc(x, y, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = "#ffcc33";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x - 4, y);
+      ctx.lineTo(x + 4, y);
+      ctx.moveTo(x, y - 4);
+      ctx.lineTo(x, y + 4);
+      ctx.stroke();
+    }
+  }
 }
 
 function drawProjectiles(ctx: CanvasRenderingContext2D, projectiles: Projectile[]): void {
   for (const projectile of projectiles) {
-    ctx.fillStyle = "#ffe082";
+    ctx.fillStyle = projectile.radius >= 5 ? "#ff9f43" : "#ffe082";
     ctx.beginPath();
     ctx.arc(projectile.x, projectile.y, projectile.radius, 0, Math.PI * 2);
     ctx.fill();
+
+    if (projectile.radius >= 5) {
+        ctx.fillStyle = "#ffd6a0";
+        ctx.beginPath();
+        ctx.arc(projectile.x - 1.5, projectile.y - 1.5, projectile.radius * 0.4, 0, Math.PI * 2);
+        ctx.fill();
+    }
   }
 }
 
@@ -191,6 +233,23 @@ function drawSpecialBox(ctx: CanvasRenderingContext2D, state: GameState): void {
   ctx.textBaseline = "alphabetic";
 }
 
+function drawExplosions(ctx: CanvasRenderingContext2D, explosions: Explosion[]): void {
+  for (const explosion of explosions) {
+    const alpha = Math.max(0, explosion.life / explosion.maxLife);
+
+    ctx.fillStyle = `rgba(255, 170, 60, ${0.28 * alpha})`;
+    ctx.beginPath();
+    ctx.arc(explosion.x, explosion.y, explosion.radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = `rgba(255, 230, 160, ${0.9 * alpha})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(explosion.x, explosion.y, explosion.radius * 0.72, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
 function drawRoller(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, state: GameState): void {
   if (!state.roller.active) {
     return;
@@ -251,6 +310,7 @@ export function draw(
   drawSpecialBox(ctx, state);
   drawPlayer(ctx, state.player);
   drawProjectiles(ctx, state.projectiles);
+  drawExplosions(ctx, state.explosions);
   drawRoller(ctx, canvas, state);
   drawEnemies(ctx, state.enemies);
   drawUpgrades(ctx, state.upgrades);

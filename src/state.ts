@@ -77,6 +77,7 @@ export function createInitialState(canvas: HTMLCanvasElement): GameState {
     enemies: [],
     upgrades: [],
     projectiles: [],
+    explosions: [],
     input: {
       left: false,
       right: false,

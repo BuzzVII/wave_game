@@ -106,8 +106,31 @@ function handleRollerHits(state: GameState, canvas: HTMLCanvasElement): void {
   }
 }
 
+function spawnExplosion(state: GameState, x: number, y: number, maxRadius = 42): void {
+  state.explosions.push({
+    x,
+    y,
+    radius: 8,
+    maxRadius,
+    life: 0.22,
+    maxLife: 0.22,
+  });
+}
+
+function updateExplosions(state: GameState, dt: number): void {
+  for (const explosion of state.explosions) {
+    explosion.life -= dt;
+
+    const progress = 1 - Math.max(0, explosion.life) / explosion.maxLife;
+    explosion.radius = 8 + (explosion.maxRadius - 8) * progress;
+  }
+
+  state.explosions = state.explosions.filter((explosion) => explosion.life > 0);
+}
+
 function applyExplosionDamage(state: GameState, hitX: number, hitY: number, damage: number): void {
   const radius = 42;
+  spawnExplosion(state, hitX, hitY, radius);
 
   for (const enemy of state.enemies) {
     const dx = enemy.x - hitX;
@@ -130,12 +153,14 @@ function activateSpecialWeapon(state: GameState, kind: SpecialWeaponKind): void 
   }
 
   if (kind === "mines") {
-    state.player.supportUnits = 10;
+    state.player.supportUnits += 10;
+    state.player.supportUnits = Math.min(state.player.supportUnits, getMaxSupportUnits());
   }
 }
 
 function resetSpecialBox(state: GameState): void {
   state.specialBox.hp = state.specialBox.maxHp;
+
 }
 function getColumnCenterX(canvas: HTMLCanvasElement, columnIndex: number): number {
   return (canvas.width / 3) * (columnIndex + 0.5);
@@ -143,6 +168,10 @@ function getColumnCenterX(canvas: HTMLCanvasElement, columnIndex: number): numbe
 
 function getUnitDecayInterval(): number {
   return 14;
+}
+
+function getMaxUnits(): number {
+    return 25;
 }
 
 function getDamageDecayRate(): number {
@@ -240,6 +269,10 @@ function getUnitUpgradeRoll(): { value: number; isMultiplier: boolean; label: st
   ]);
 }
 
+function getMaxSupportUnits(): number {
+    return 15;
+}
+
 function addWeaponUpgrade(state: GameState, upgrade: Upgrade): void {
   if (upgrade.kind === "weapon-speed") {
     state.player.attackSpeed *= 1 + upgrade.value;
@@ -254,10 +287,11 @@ function addWeaponUpgrade(state: GameState, upgrade: Upgrade): void {
 function addUnitUpgrade(state: GameState, upgrade: Upgrade): void {
   if (upgrade.isMultiplier) {
     state.player.units = Math.max(1, Math.floor(state.player.units * upgrade.value));
-    return;
+  } else {
+      state.player.units += upgrade.value;
   }
 
-  state.player.units += upgrade.value;
+  state.player.units = Math.min(state.player.units, getMaxUnits());
 }
 
 function spawnEnemy(state: GameState, canvas: HTMLCanvasElement, isBoss: boolean): void {
@@ -389,13 +423,14 @@ function updatePlayerMovement(state: GameState, canvas: HTMLCanvasElement, dt: n
 
 function fireProjectiles(state: GameState): void {
   const unitPositions = getUnitWorldPositions(state.player);
+  const isExplosive = state.player.specialWeapon === "explosive";
 
   for (const unit of unitPositions) {
     state.projectiles.push({
       x: unit.x,
       y: unit.y - 14,
-      radius: 4,
-      speed: 460,
+      radius: isExplosive ? 6 : 4,
+      speed: isExplosive ? 360 : 460,
       damage: state.player.damage,
     });
   }
@@ -747,6 +782,7 @@ export function updateCombat(state: GameState, canvas: HTMLCanvasElement, dt: nu
   updateProjectiles(state, dt);
   updateEnemies(state, dt);
   updateUpgrades(state, dt);
+  updateExplosions(state, dt);
 
   handleProjectileHits(state);
   handleProjectileUpgradeHits(state);
