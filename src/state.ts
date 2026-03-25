@@ -100,7 +100,7 @@ export function createInitialState(canvas: HTMLCanvasElement): GameState {
       active: false,
       y: -100,
       speed: 280,
-      radius: 18,
+      radius: 40,
     },
   };
 }
