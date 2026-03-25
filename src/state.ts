@@ -53,6 +53,9 @@ export function createInitialPlayer(canvas: HTMLCanvasElement): Player {
     attackSpeed: 1,
     fireCooldown: 0,
     moveSpeed: 360,
+    baseDamage: 10,
+    baseAttackSpeed: 1,
+    unitDecayTimer: 0,
   };
 }
 

@@ -26,6 +26,9 @@ export type Player = {
   attackSpeed: number;
   fireCooldown: number;
   moveSpeed: number;
+  baseDamage: number;
+  baseAttackSpeed: number;
+  unitDecayTimer: number;
 };
 
 export type Enemy = {

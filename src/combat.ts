@@ -12,6 +12,18 @@ function getColumnCenterX(canvas: HTMLCanvasElement, columnIndex: number): numbe
   return (canvas.width / 3) * (columnIndex + 0.5);
 }
 
+function getUnitDecayInterval(): number {
+  return 14;
+}
+
+function getDamageDecayRate(): number {
+  return 0.03;
+}
+
+function getAttackSpeedDecayRate(): number {
+  return 0.04;
+}
+
 function getUpgradeHp(): number {
   return 40;
 }
@@ -48,6 +60,7 @@ function removeOneUnit(state: GameState): void {
     state.projectiles = [];
   }
 }
+
 function getEnemySpeed(): number {
   return 12;
 }
@@ -265,6 +278,39 @@ function updateProjectiles(state: GameState, dt: number): void {
   }
 
   state.projectiles = state.projectiles.filter((projectile) => projectile.y + projectile.radius > 0);
+}
+
+function updatePlayerDecay(state: GameState, dt: number): void {
+  state.player.unitDecayTimer += dt;
+
+  while (state.player.unitDecayTimer >= getUnitDecayInterval()) {
+    state.player.unitDecayTimer -= getUnitDecayInterval();
+
+    if (state.player.units > 1) {
+      state.player.units -= 1;
+    }
+  }
+
+  const damageDecay = getDamageDecayRate();
+  const attackSpeedDecay = getAttackSpeedDecayRate();
+
+  if (state.player.damage > state.player.baseDamage) {
+    const excessDamage = state.player.damage - state.player.baseDamage;
+    state.player.damage -= excessDamage * damageDecay * dt;
+
+    if (state.player.damage < state.player.baseDamage) {
+      state.player.damage = state.player.baseDamage;
+    }
+  }
+
+  if (state.player.attackSpeed > state.player.baseAttackSpeed) {
+    const excessAttackSpeed = state.player.attackSpeed - state.player.baseAttackSpeed;
+    state.player.attackSpeed -= excessAttackSpeed * attackSpeedDecay * dt;
+
+    if (state.player.attackSpeed < state.player.baseAttackSpeed) {
+      state.player.attackSpeed = state.player.baseAttackSpeed;
+    }
+  }
 }
 
 function updateEnemies(state: GameState, dt: number): void {
@@ -486,6 +532,7 @@ export function updateCombat(state: GameState, canvas: HTMLCanvasElement, dt: nu
   updateEnemySpawns(state, canvas, dt);
   updateUpgradeSpawns(state, canvas, dt);
   updatePlayerMovement(state, canvas, dt);
+  updatePlayerDecay(state, dt);
 
   state.player.fireCooldown -= dt;
   const fireInterval = 1 / state.player.attackSpeed;
