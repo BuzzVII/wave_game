@@ -1,0 +1,7 @@
+dist/
+node_modules/
+package-lock.json
+*.swp
+*.map
+*.d.ts
+src/*.js
