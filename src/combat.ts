@@ -12,7 +12,7 @@ import {
 function chooseSpecialWeapon(): SpecialWeaponKind {
   const roll = Math.random();
 
-  if (roll < 0.25) {
+  if (roll < 0.05) {
     return "roller";
   }
 
@@ -20,7 +20,7 @@ function chooseSpecialWeapon(): SpecialWeaponKind {
     return "explosive";
   }
 
-  if (roll < 0.75) {
+  if (roll < 0.80) {
     return "machine-gun";
   }
 
@@ -170,7 +170,7 @@ function getUnitDecayInterval(): number {
 }
 
 function getMaxUnits(): number {
-    return 25;
+    return 30;
 }
 
 function getDamageDecayRate(): number {
@@ -186,14 +186,16 @@ function getUpgradeHp(): number {
 }
 
 function getBossHp(score: number): number {
-  return 180 + score * 2.5;
+  return 180 + Math.log(score) * 2.5;
 }
 
 function getNormalEnemyHp(score: number): number {
-  return 24 + score * 0.6;
+  return 24 + Math.log(score) * 0.6;
 }
 
 function getNextUnitUpgradeTier(tier: number): { tier: number; value: number; isMultiplier: boolean; label: string } {
+  return { tier: 1, value: 1, isMultiplier: false, label: "+1" };
+  // comment above and use this for more interesting unit upgrades
   if (tier <= 0) {
     return { tier: 1, value: 1, isMultiplier: false, label: "+1" };
   }
@@ -218,8 +220,8 @@ function removeOneUnit(state: GameState): void {
   }
 }
 
-function getEnemySpeed(): number {
-  return 12;
+function getEnemySpeed(score: number): number {
+  return 30 + Math.log(1 + score) * 6;
 }
 
 function getEnemySpawnInterval(score: number): number {
@@ -227,7 +229,7 @@ function getEnemySpawnInterval(score: number): number {
 }
 
 function shouldSpawnBoss(score: number): boolean {
-  const chance = Math.min(0.04 + score * 0.0008, 0.12);
+  const chance = Math.min(0.04 + Math.log(score) * 0.008, 0.12);
   return Math.random() < chance/10.0;
 }
 
@@ -252,14 +254,15 @@ function chooseOne<T>(entries: Array<{ value: T; weight: number }>): T {
 
 function getWeaponUpgradePercent(): number {
   return chooseOne([
-    { value: 0.02, weight: 1 },
     { value: 0.05, weight: 1 },
-    { value: 0.1, weight: 1 },
-    { value: 0.15, weight: 1 },
+    { value: 0.10, weight: 1 },
+    { value: 0.20, weight: 1 },
+    { value: 0.50, weight: 1 },
   ]);
 }
 
 function getUnitUpgradeRoll(): { value: number; isMultiplier: boolean; label: string } {
+  return { value: 1, isMultiplier: false, label: "+1" };
   return chooseOne([
     { value: { value: 1, isMultiplier: false, label: "+1" }, weight: 50 },
     { value: { value: 2, isMultiplier: false, label: "+2" }, weight: 28 },
@@ -296,7 +299,7 @@ function addUnitUpgrade(state: GameState, upgrade: Upgrade): void {
 function spawnEnemy(state: GameState, canvas: HTMLCanvasElement, isBoss: boolean): void {
   const enemyLeft = getEnemyColumnLeft(canvas);
   const enemyWidth = getEnemyColumnWidth(canvas);
-  const speed = getEnemySpeed();
+  const speed = getEnemySpeed(state.score);
 
   if (isBoss) {
     const bossHp = getBossHp(state.score);
@@ -380,8 +383,8 @@ function updateUpgradeSpawns(state: GameState, canvas: HTMLCanvasElement, dt: nu
   state.weaponUpgradeSpawnTimer -= dt;
   state.unitUpgradeSpawnTimer -= dt;
 
-  const weaponUpgradeInterval = 2;
-  const unitUpgradeInterval = 1 / 0.3;
+  const weaponUpgradeInterval = 5;
+  const unitUpgradeInterval = 0.5;
 
   while (state.weaponUpgradeSpawnTimer <= 0) {
     spawnWeaponUpgrade(state, canvas);
